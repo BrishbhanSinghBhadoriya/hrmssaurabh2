@@ -16,9 +16,7 @@ const app = express();
 dotenv.config();
 
 const allowedOrigins = [
-	"https://unifost-hrms-frontend.vercel.app",
-	"https://unifost-hrms-frontend-typescript-lyart.vercel.app",
-	"https://unifost-hrms-frontend-typescript.vercel.app",
+	"https://hrmssaurabh2.onrender.com",
 	"http://localhost:3000"
   ];
   

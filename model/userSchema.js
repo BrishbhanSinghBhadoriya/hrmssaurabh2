@@ -14,11 +14,11 @@ const UserSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true },
     
     // Personal Information
-    name: { type: String, required: true },
+    name: { type: String, default: "" },
     fatherName:{type:String,default:""},
     bloodGroup:{type:String,default:""},
     email: { type: String, required: true, unique: true },
-    phone: { type: String, required: true },
+    phone: { type: String, default: "" },
     
     address: {
         street: { type: String, default: "" },   
@@ -28,7 +28,7 @@ const UserSchema = new mongoose.Schema({
         country: { type: String, default: "India" }
       },
       
-    dob: { type: Date, default: "" },  
+    dob: { type: Date, default: null },  
     gender: { type: String, enum: ["male", "female", "other"], default: "male" },
     profilePicture: { type: String, default: "" },
     professionalEmailId:{type:String, default: ""},
@@ -36,12 +36,12 @@ const UserSchema = new mongoose.Schema({
 
     
     // Employment Information
-    employeeId: { type: String, required: true, unique: true },
-    joiningDate: { type: Date, default: null ,required:true}, 
+    employeeId: { type: String, unique: true },
+    joiningDate: { type: Date, default: Date.now }, 
     experience: [
         {
-          company: { type: String, required: true,default:" " },
-          designation: { type: String, required: true,default:" " },
+          company: { type: String, default:" " },
+          designation: { type: String, default:" " },
           startDate: { type: Date, default: null },
           endDate: { type: Date, default: null }, 
           description: { type: String, default: "" } 
@@ -50,7 +50,7 @@ const UserSchema = new mongoose.Schema({
       
       education: [
         {
-          degree: { type: String, required: true },   
+          degree: { type: String, default: "" },   
           institution: { type: String, default: "" }, 
           fieldOfStudy: { type: String, default: "" },
           startDate: { type: Date },
@@ -63,18 +63,18 @@ const UserSchema = new mongoose.Schema({
     // Bank Information
     bankDetails: [
         {
-          bankName: { type: String, required: true },
-          bankAccountNumber: { type: String, required: true },
+          bankName: { type: String, default: "" },
+          bankAccountNumber: { type: String, default: "" },
           bankAccountType: { type: String, enum: ["savings", "current"], default: "savings" },
-          bankIFSC: { type: String, required: true },
-          bankAccountHolderName: { type: String, required: true },
+          bankIFSC: { type: String, default: "" },
+          bankAccountHolderName: { type: String, default: "" },
          
         }
       ],
       
     // Work Details
-    department: { type: String, enum: ["IT", "HR", "Marketing", "Sales", "Other"], default: "IT", required: true },
-    designation: { type: String, required: true  },
+    department: { type: String, enum: ["IT", "HR", "Marketing", "Sales", "Other"], default: "IT" },
+    designation: { type: String, default: ""  },
     jobType:{type:String,enum:["FULL TIME" ,"INTERN","FREELANCE"]},
     workMode:{type:String,default:" "},
     lastLogin: { type: Date, default: Date.now },

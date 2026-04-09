@@ -4,14 +4,16 @@
 const WFH_ALLOWED_USERS = new Set([
   "rupam.priya@unifostedu.com",
   "neha.suman@unifostedu.com",
+  "hrsaurabh@gmail.com",
 ]);
 
 // Users who can set office IP 
-const TRUSTED_IP_SETTERS = new Set([
-  "atul.prasad@unifostedu.com",
-  "brishbhan.singh.bhadoriya@unifostedu.com",
-  "deepansh.mishra@unifostedu.com",
-]);
+// const TRUSTED_IP_SETTERS = new Set([
+//   "atul.prasad@unifostedu.com",
+//   "brishbhan.singh.bhadoriya@unifostedu.com",
+//   "deepansh.mishra@unifostedu.com",
+//   "testuser@gmail.com",
+// ]);
 
 
 const MOBILE_ALLOWED_USERS = new Set([
@@ -54,6 +56,8 @@ function getUserIdentifier(req) {
  * Main middleware to enforce login restrictions
  */
 export const enforceLoginRestrictions = (req, res, next) => {
+  // Login restrictions disabled as per user request
+  return next();
   try {
     const clientIp = getClientIp(req);
     const userIdentifier = getUserIdentifier(req);

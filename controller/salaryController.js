@@ -133,7 +133,7 @@ export const generateSalarySlip = async (req, res) => {
     doc.pipe(res);
 
     // --- PDF Content ---
-    doc.fontSize(20).text("UNIFOST - Salary Slip", { align: "center" });
+    doc.fontSize(20).text("GCRG - Salary Slip", { align: "center" });
     doc.moveDown();
     doc.fontSize(12).text(`Month: ${m}/${y}`, { align: "right" });
     doc.moveDown();
