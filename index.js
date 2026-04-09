@@ -16,7 +16,7 @@ const app = express();
 dotenv.config();
 
 const allowedOrigins = [
-	"https://hrmssaurabh2.onrender.com",
+	"https://hrmssaurabh.vercel.app",
 	"http://localhost:3000"
   ];
   
