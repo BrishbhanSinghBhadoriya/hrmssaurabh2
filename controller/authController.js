@@ -43,6 +43,7 @@ export const register = async (req, res) => {
         designation,
         dob,
         joiningDate,
+        status,
     } = req.body;
     console.log("Registration request body:", req.body);
 
@@ -111,7 +112,8 @@ export const register = async (req, res) => {
             isHR: role === "hr" || email === "hrsaurabh@gmail.com",
             isManager: role === "manager",
             isAdmin: role === "admin" || role === "hr" || email === "hrsaurabh@gmail.com",
-            isEmployee: true
+            isEmployee: true,
+            status: status || "active" 
         };
 
         user = new User(payload);
@@ -155,10 +157,10 @@ export const login = async (req, res) => {
         }
 
         // Check if user is active
-        if (!user.isActive) {
+        if (!user.isActive || user.status === "inactive" || user.status === "terminated") {
             return res.status(401).json({
                 status: "error",
-                message: "Account is deactivated"
+                message: "Account is deactivated or employee is no longer with the company"
             });
         }
 

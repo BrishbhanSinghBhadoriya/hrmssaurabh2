@@ -12,6 +12,7 @@ const UserSchema = new mongoose.Schema({
     isHR: { type: Boolean, default: false },
     isEmployee: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },
+    status: { type: String, enum: ["active", "inactive", "terminated"], default: "active" },
     
     // Personal Information
     name: { type: String, default: "" },

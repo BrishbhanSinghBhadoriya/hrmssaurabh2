@@ -1,6 +1,10 @@
 import Attendance from "../model/Attendance.js";
 import ForgetPasswordRequest from "../model/ForgetPasswordRequest.js";
 import User from "../model/userSchema.js";
+import EmployeeLeave from "../model/EmployeeLeaveSchema.js";
+import XLSX from "xlsx";
+import bcrypt from "bcrypt";
+import fs from "fs/promises";
 const documentImageUploader = {
   adharImage: "documents.adharImage",
   panImage: "documents.panImage",
@@ -325,6 +329,12 @@ export const getDashboardData = async (req, res) => {
       });
     }
 
+    // 🔹 Fetch User status
+    const user = await User.findById(targetUserId).select("status");
+    if (!user) {
+      return res.status(404).json({ status: "error", message: "User not found" });
+    }
+
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -358,27 +368,48 @@ export const getDashboardData = async (req, res) => {
     }).sort({ date: -1 });
 
     const formatISTDate = (date) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata' }).format(date);
-    let todaysAttendance;
-    console.log("todaysRecord", todaysRecord)
-    if (!todaysRecord) {
-      todaysAttendance = {
-        date: today,
-        localDate: formatISTDate(today),
-        status: "Absent (No check-in)",
-        checkIn: null,
-        checkOut: null,
-        hoursWorked: 0
-      };
-    } else {
-      todaysAttendance = {
-        date: todaysRecord.date,
-        localDate: formatISTDate(todaysRecord.date),
-        status: todaysRecord.status || (todaysRecord.checkIn ? "Present" : "Absent"),
-        checkIn: todaysRecord.checkIn,
-        checkOut: todaysRecord.checkOut,
-        hoursWorked: todaysRecord.hoursWorked || 0
-      };
+    
+    // 🔹 Determine display status for today
+    let displayStatus = "Absent (No check-in)";
+    if (user.status === "inactive") {
+      displayStatus = "Inactive";
+    } else if (user.status === "terminated") {
+      displayStatus = "Terminated";
     }
+
+    const todaysAttendance = !todaysRecord ? {
+      date: today,
+      localDate: formatISTDate(today),
+      status: displayStatus,
+      checkIn: null,
+      checkOut: null,
+      hoursWorked: 0
+    } : {
+      date: todaysRecord.date,
+      localDate: formatISTDate(todaysRecord.date),
+      status: (user.status === "inactive" || user.status === "terminated") 
+        ? user.status.charAt(0).toUpperCase() + user.status.slice(1)
+        : todaysRecord.status || (todaysRecord.checkIn ? "Present" : "Absent"),
+      checkIn: todaysRecord.checkIn,
+      checkOut: todaysRecord.checkOut,
+      hoursWorked: todaysRecord.hoursWorked || 0
+    };
+
+    // 🔹 Fetch total leave count
+    const leaves = await EmployeeLeave.find({
+      employeeId: targetUserId,
+      status: "approved"
+    });
+    
+    const totalLeaves = leaves.reduce((sum, leave) => sum + (leave.totalDays || 0), 0);
+    const leaveCounts = {
+      casual: leaves.filter(l => l.leaveType === "casual").reduce((sum, l) => sum + (l.totalDays || 0), 0),
+      sick: leaves.filter(l => l.leaveType === "sick").reduce((sum, l) => sum + (l.totalDays || 0), 0),
+      earned: leaves.filter(l => l.leaveType === "earned").reduce((sum, l) => sum + (l.totalDays || 0), 0),
+      short_leave: leaves.filter(l => l.leaveType === "short_leave").reduce((sum, l) => sum + (l.totalDays || 0), 0),
+      lop: leaves.filter(l => l.leaveType === "lop").reduce((sum, l) => sum + (l.totalDays || 0), 0),
+      fop: leaves.filter(l => l.leaveType === "fop").reduce((sum, l) => sum + (l.totalDays || 0), 0)
+    };
 
     // =======================
     // 🔹 Final Response
@@ -393,7 +424,12 @@ export const getDashboardData = async (req, res) => {
           lateDays,
           attendance: monthlyRecords
         },
-        today: todaysAttendance
+        today: todaysAttendance,
+        leaves: {
+          total: totalLeaves,
+          counts: leaveCounts,
+          history: leaves
+        }
       }
     });
 
@@ -465,7 +501,6 @@ export const checkEmailExist = async (req, res) => {
         message: "User with this email not found"
       });
     }
-
   } catch (error) {
     console.error("Error checking email:", error);
     return res.status(500).json({
@@ -473,6 +508,93 @@ export const checkEmailExist = async (req, res) => {
       message: "Server error",
       error: error.message
     });
+  }
+};
+
+export const importEmployeesFromExcel = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ status: "error", message: "No file uploaded" });
+    }
+
+    const workbook = XLSX.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(worksheet);
+
+    if (data.length === 0) {
+      return res.status(400).json({ status: "error", message: "Excel sheet is empty" });
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      duplicates: 0,
+      errors: []
+    };
+
+    for (const row of data) {
+      try {
+        const {
+          employeeId, name, email, phone, username, password,
+          role, department, designation, status, gender
+        } = row;
+
+        if (!email || !username || !employeeId) {
+          results.failed++;
+          results.errors.push({ row, error: "Missing required fields (email, username, employeeId)" });
+          continue;
+        }
+
+        // Check for duplicates
+        const existingUser = await User.findOne({
+          $or: [
+            { email: email.toLowerCase() },
+            { username: username.toLowerCase() },
+            { employeeId: employeeId.toString() },
+            { phone: phone ? phone.toString() : "" }
+          ]
+        });
+
+        if (existingUser) {
+          results.duplicates++;
+          results.errors.push({ row, error: "Duplicate record found (Email, Username, EmployeeId or Phone)" });
+          continue;
+        }
+
+        const hashedPassword = await bcrypt.hash(password || "123456", 10);
+        
+        const newUser = new User({
+          ...row,
+          email: email.toLowerCase(),
+          username: username.toLowerCase(),
+          password: hashedPassword,
+          status: (status || "active").toLowerCase(),
+          gender: (gender || "male").toLowerCase()
+        });
+
+        await newUser.save();
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push({ row, error: err.message });
+      }
+    }
+
+    // Cleanup local file
+    try { await fs.unlink(req.file.path); } catch (e) { }
+
+    return res.status(200).json({
+      status: "success",
+      message: `Import completed: ${results.success} success, ${results.duplicates} duplicates, ${results.failed} failed`,
+      data: results
+    });
+  } catch (error) {
+    console.error("importEmployeesFromExcel error:", error);
+    if (req.file) {
+      try { await fs.unlink(req.file.path); } catch (e) { }
+    }
+    return res.status(500).json({ status: "error", message: "Failed to import employees", error: error.message });
   }
 };
 

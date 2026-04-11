@@ -52,6 +52,7 @@ export const createLeave = async (req, res) => {
 		const startRaw = b.startDate || b.start_date || b.start || b.fromDate || b.from || b["Start Date"];
 		const endRaw = b.endDate || b.end_date || b.end || b.toDate || b.to || b["End Date"]; 
 		const durationType = normalizeDuration(b.durationType || b.duration || b["Duration"]);
+		const remarks = b.remarks || "";
 
 		const startDate = parseDateFlexible(startRaw);
 		const endDate = parseDateFlexible(endRaw || startRaw);
@@ -69,6 +70,17 @@ export const createLeave = async (req, res) => {
 		const oneDay = 24 * 60 * 60 * 1000;
 		let requestedDays = Math.round(Math.abs((endDate - startDate) / oneDay)) + 1;
 		if (durationType === "half_day") requestedDays = 0.5;
+		if (leaveType.toLowerCase().includes("short")) {
+			requestedDays = 0.25; // Assuming 2 hours = 1/4 day
+		}
+
+		// Gender validation for FOP
+		if (leaveType.toLowerCase() === "fop") {
+			const user = await User.findById(userId).select("gender");
+			if (user && user.gender !== "female") {
+				return res.status(400).json({ status: "error", message: "FOP leave is only allowed for female candidates" });
+			}
+		}
 
 		// Balance validation for CL, SL, EL only (LOP, FOB skip this check)
 		const balanceCheckTypes = ["casual", "sick", "earned"];
@@ -116,13 +128,16 @@ export const createLeave = async (req, res) => {
 		const doc = await EmployeeLeave.create({
 			employeeId: userId,
 			employeeName: employeeName,
-			employeeRole:role,
-			department:department,
-			leaveType,
+			employeeRole: role,
+			department: department,
+			leaveType: leaveType.toLowerCase(),
 			reason,
+			remarks,
 			startDate,
 			endDate,
-			durationType
+			durationType,
+			totalDays: requestedDays,
+			status: "pending"
 		});
 
 		return res.status(201).json({ status: "success", message: "Leave request created", leave: doc });

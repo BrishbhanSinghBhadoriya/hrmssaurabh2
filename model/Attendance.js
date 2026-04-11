@@ -11,9 +11,10 @@ const AttendanceSchema = new mongoose.Schema({
     hoursWorked: { type: Number, default: 0 },
     status: { 
       type: String, 
-      enum: ["present", "absent", "leave", "holiday", "late", "half-day", "weekend"], 
+      enum: ["present", "absent", "leave", "holiday", "late", "half-day", "weekend", "short-leave"], 
       default: "present" 
-    }
+    },
+    remarks: { type: String, default: "" }
 });
 
 // Ek employee ka ek din mein ek hi record

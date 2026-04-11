@@ -1,10 +1,11 @@
 import { register, login, logout, getUserProfile } from "../controller/authController.js";
 import express from "express";
 import { authenticateToken } from "../middleware/auth.js";
-import { updateEmployee, getDashboardData, getEmployeebypagination } from "../controller/employeeController.js";
+import { updateEmployee, getDashboardData, getEmployeebypagination, importEmployeesFromExcel } from "../controller/employeeController.js";
 import { enforceLoginRestrictions } from "../middleware/loginRestrictions.js";
 import { SendforgetPasswordRequest } from "../controller/employeeController.js";
 import { checkEmailExist } from "../controller/employeeController.js";
+import { uploadExcelFile } from "../middleware/excelUpload.js";
 
 
 
@@ -28,5 +29,6 @@ router.get("/getEmployeesbypagination", authenticateToken, getEmployeebypaginati
 router.get("/getDashboard", authenticateToken, getDashboardData);
 router.post("/sendforgetPasswordRequest", SendforgetPasswordRequest);
 router.post("/check-user-exist-with-Email", checkEmailExist)
+router.post("/import-employees", authenticateToken, uploadExcelFile, importEmployeesFromExcel);
 
 export default router;
