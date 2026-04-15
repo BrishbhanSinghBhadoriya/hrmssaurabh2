@@ -4,6 +4,7 @@
 const WFH_ALLOWED_USERS = new Set([
  "saurabh",
   "uttkarsh",
+  "arpita",
 ]);
 
 // Users who can set office IP 

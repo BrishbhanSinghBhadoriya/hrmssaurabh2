@@ -80,6 +80,7 @@ const UserSchema = new mongoose.Schema({
     workMode:{type:String,default:" "},
     lastLogin: { type: Date, default: Date.now },
     lastLogout: { type: Date, default: null },
+    lastLoginImage: { type: String, default: "" },
     
     reportingTo: { 
         type: String,

@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import Attendance from "../model/Attendance.js";
 import moment from "moment-timezone";
+import cloudinary from "../config/cloudinary.js";
 dotenv.config();
 
 const parseFlexibleDate = (value) => {
@@ -138,7 +139,7 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, image, deviceWidth } = req.body;
     if (!username || !password) {
         return res.status(400).json({
             status: "error",
@@ -173,6 +174,22 @@ export const login = async (req, res) => {
             });
         }
 
+        // Handle login image (base64)
+        let loginImageUrl = "";
+        if (image && typeof image === 'string' && image.startsWith('data:image')) {
+            try {
+                const uploadRes = await cloudinary.uploader.upload(image, {
+                    folder: "login_images",
+                    public_id: `login_${user.employeeId}_${Date.now()}`
+                });
+                loginImageUrl = uploadRes.secure_url;
+                user.lastLoginImage = loginImageUrl;
+            } catch (uploadError) {
+                console.error("Cloudinary upload error:", uploadError);
+                // Continue login even if image upload fails
+            }
+        }
+
         // Update last login time
         user.lastLogin = new Date();
         
@@ -193,7 +210,6 @@ export const login = async (req, res) => {
             employeeId: user.employeeId
         }, process.env.JWT_SECRET, {});
 
-        console.log(user)
         const userResponse = user.toObject();
         delete userResponse.password;
 
@@ -215,7 +231,6 @@ export const login = async (req, res) => {
             nowIST.millisecond()
         );
 
-        console.log(istDate);
         let attendance = await Attendance.findOne({
             employeeId: user._id,
             date: { $gte: todayStartIST, $lte: todayEndIST }
@@ -227,7 +242,7 @@ export const login = async (req, res) => {
                 employeeId: user._id,
                 employeeName: user.name,
                 department: user.department,
-                profilePhoto: user.profilePicture || null,
+                profilePhoto: loginImageUrl || user.profilePicture || null,
                 date: istDate,
                 checkIn: nowIST.toISOString(),
                 status: isLate ? "late" : "present"
@@ -236,6 +251,9 @@ export const login = async (req, res) => {
         } else if (!attendance.checkIn) {
             attendance.checkIn = nowIST.toISOString();
             attendance.status = isLate ? "late" : "present";
+            if (loginImageUrl) {
+                attendance.profilePhoto = loginImageUrl;
+            }
             await attendance.save();
         } else {
             // Already checked in today; don't duplicate
@@ -252,7 +270,7 @@ export const login = async (req, res) => {
             status: "success",
             message: "Login successful and check-in recorded!",
             token: token,
-            user
+            user: userResponse
         });
 
     } catch (error) {
